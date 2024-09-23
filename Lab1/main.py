@@ -8,7 +8,7 @@ class Node:
 
 class Characteristic:
     def __init__(self, name, ctype='binary', options=None):
-        self.name = name  # e.g., 'have ears', 'be telepathic', 'wear hat'
+        self.name = name  # E.g., 'have ears', 'be telepathic', 'wear hat'
         self.ctype = ctype  # 'binary', 'multiple_choice', 'percentage'
         self.options = options or []
 
@@ -25,10 +25,8 @@ characteristics = {
     'body type': Characteristic('body type', 'multiple_choice', ['humanoid', 'insectoid', 'energy-based']),
     'communication method': Characteristic('communication method', 'multiple_choice', ['verbal', 'telepathic', 'gesture']),
     'favorite food': Characteristic('favorite food', 'multiple_choice', ['pizza', 'rocks', 'light']),
+    'is tourist': Characteristic('a tourist', 'binary'),
 }
-
-# Adjusted 'is tourist' characteristic for proper grammar
-characteristics['is tourist'] = Characteristic('a tourist', 'binary')
 
 # Build the decision tree with 3-4 levels of subgoals and AND/OR logic
 tree = Node('or', children=[
@@ -45,16 +43,16 @@ tree = Node('or', children=[
                         Node('characteristic', ('intellect', '>60')),
                         Node('characteristic', ('wear hat', 'yes')),
                         Node('characteristic', ('have ears', 'yes')),
-                        Node('tourist', 'Earth Tourist')
+                        Node('tourist', 'Earth Tourist'),
                     ]),
                     # Mars Tourist
                     Node('and', children=[
                         Node('characteristic', ('intellect', '<=60')),
                         Node('characteristic', ('wear sneakers', 'yes')),
                         Node('characteristic', ('have ears', 'yes')),
-                        Node('tourist', 'Mars Tourist')
+                        Node('tourist', 'Mars Tourist'),
                     ]),
-                ])
+                ]),
             ]),
             # New Horizon System Tourists
             Node('and', children=[
@@ -65,33 +63,33 @@ tree = Node('or', children=[
                         Node('characteristic', ('be telepathic', 'yes')),
                         Node('characteristic', ('have ears', 'no')),
                         Node('characteristic', ('number of eyes', 'many')),
-                        Node('tourist', 'Gliese Tourist')
+                        Node('tourist', 'Gliese Tourist'),
                     ]),
                     # Kepler Tourist
                     Node('and', children=[
                         Node('characteristic', ('be telepathic', 'no')),
                         Node('characteristic', ('have ears', 'no')),
                         Node('characteristic', ('skin color', 'blue')),
-                        Node('tourist', 'Kepler Tourist')
+                        Node('tourist', 'Kepler Tourist'),
                     ]),
                     # Cancri Tourist
                     Node('and', children=[
                         Node('characteristic', ('be telepathic', 'yes')),
                         Node('characteristic', ('communication method', 'gesture')),
                         Node('characteristic', ('favorite food', 'light')),
-                        Node('tourist', 'Cancri Tourist')
+                        Node('tourist', 'Cancri Tourist'),
                     ]),
-                ])
+                ]),
             ]),
-        ])
+        ]),
     ]),
     # Loonie Branch (Not a Tourist)
     Node('and', children=[
         Node('characteristic', ('is tourist', 'no')),
         Node('characteristic', ('origin', 'Solar System')),
         Node('characteristic', ('intellect', '>60')),
-        Node('tourist', 'Loonie')
-    ])
+        Node('tourist', 'Loonie'),
+    ]),
 ])
 
 def generate_question(char_name):
@@ -148,60 +146,94 @@ def evaluate_condition(answer, expected_value, char_name):
     else:
         return answer == expected_value
 
-def can_satisfy(node, known_answers):
+def collect_all_characteristics(node, chars_set):
     if node.node_type == 'characteristic':
-        char_name, expected_value = node.value
-        if char_name in known_answers:
-            answer = known_answers[char_name]
-            return evaluate_condition(answer, expected_value, char_name)
-        else:
-            return True  # We don't know yet, so it's possible
-    elif node.node_type == 'and':
+        char_name, _ = node.value
+        chars_set.add(char_name)
+    elif node.children:
         for child in node.children:
-            if not can_satisfy(child, known_answers):
-                return False
-        return True
-    elif node.node_type == 'or':
-        for child in node.children:
-            if can_satisfy(child, known_answers):
-                return True
-        return False
-    elif node.node_type == 'tourist':
-        return True
-    return False
+            collect_all_characteristics(child, chars_set)
 
-def forward_chaining(node, known_answers):
-    if node.node_type == 'characteristic':
+def possible_paths(node, known_answers):
+    if node.node_type == 'tourist':
+        return [[node]]
+    elif node.node_type == 'characteristic':
         char_name, expected_value = node.value
         if char_name in known_answers:
             answer = known_answers[char_name]
+            if evaluate_condition(answer, expected_value, char_name):
+                return [[]]
+            else:
+                return []
         else:
-            answer = ask_question(char_name)
-            known_answers[char_name] = answer
-        if evaluate_condition(answer, expected_value, char_name):
-            return True
-        else:
-            return False
+            return [[node]]
     elif node.node_type == 'and':
+        paths = [[]]
         for child in node.children:
-            result = forward_chaining(child, known_answers)
-            if not result:
-                return False
-        return True
+            child_paths = possible_paths(child, known_answers)
+            if not child_paths:
+                return []
+            new_paths = []
+            for path in paths:
+                for cpath in child_paths:
+                    new_paths.append(path + cpath)
+            paths = new_paths
+        return paths
     elif node.node_type == 'or':
-        children = node.children[:]
-        random.shuffle(children)
-        for child in children:
-            if not can_satisfy(child, known_answers):
-                continue  # Skip this branch due to conflict
-            result = forward_chaining(child, known_answers)
-            if result:
-                return True
-        return False
-    elif node.node_type == 'tourist':
-        print(f"\nThe visitor is classified as: {node.value}")
-        return True
-    return False
+        paths = []
+        for child in node.children:
+            child_paths = possible_paths(child, known_answers)
+            paths.extend(child_paths)
+        return paths
+    else:
+        return []
+
+def select_next_question(possible_paths, asked_questions):
+    char_counts = {}
+    for path in possible_paths:
+        for node in path:
+            if node.node_type == 'characteristic':
+                char_name, _ = node.value
+                if char_name not in asked_questions:
+                    char_counts[char_name] = char_counts.get(char_name, 0) + 1
+    if not char_counts:
+        return None
+    # Randomly select from the characteristics with the highest count
+    max_count = max(char_counts.values())
+    candidates = [char for char, count in char_counts.items() if count == max_count]
+    return random.choice(candidates)
+
+def forward_chaining_random(node):
+    known_answers = {}
+    asked_questions = set()
+    # Collect all characteristics from the tree
+    all_chars = set()
+    collect_all_characteristics(node, all_chars)
+    all_chars = list(all_chars)
+    # Randomly select the first question from all characteristics
+    if all_chars:
+        first_question = random.choice(all_chars)
+        answer = ask_question(first_question)
+        known_answers[first_question] = answer
+        asked_questions.add(first_question)
+    while True:
+        paths = possible_paths(node, known_answers)
+        if not paths:
+            print("\nThe visitor type is unknown based on the provided information.")
+            return
+        # Check if we have reached a conclusion
+        for path in paths:
+            if all(node.node_type != 'characteristic' for node in path) and path[-1].node_type == 'tourist':
+                print(f"\nThe visitor is classified as: {path[-1].value}")
+                return
+        # Select next question
+        next_char = select_next_question(paths, asked_questions)
+        if not next_char:
+            print("\nThe visitor type is unknown based on the provided information.")
+            return
+        answer = ask_question(next_char)
+        known_answers[next_char] = answer
+        asked_questions.add(next_char)
 
 def backward_chaining(node, goal, path):
     if node.node_type == 'tourist' and node.value == goal:
@@ -251,10 +283,7 @@ def main():
 
     if mode == "1":
         print("\nStarting Forward Chaining...")
-        known_answers = {}
-        result = forward_chaining(tree, known_answers)
-        if not result:
-            print("\nThe visitor type is unknown based on the provided information.")
+        forward_chaining_random(tree)
     elif mode == "2":
         goal = input("Enter the visitor type you want to check: ").strip()
         print(f"\nBackward Chaining to determine if the visitor is a {goal}...")
