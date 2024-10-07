@@ -188,7 +188,6 @@ class Features:
     
     walks_fast = '(?x) walks fast'
     walks_slowly = '(?x) walks slowly'
-    has_floating_gait = '(?x) has floating gait'
     
     has_antennae = '(?x) has antennae'
     has_tentacles = '(?x) has tentacles'
@@ -223,7 +222,7 @@ class Loonie:
 
 
 TOURIST_RULES = [
-    IF(AND(Features.wears_traditional_earth_clothes,
+    IF(AND(Features.wears_modern_fashion,
            Features.has_earth_accent),
        THEN(EarthOriginTourist.conclusion)),
        
@@ -256,21 +255,17 @@ TOURIST_RULES = [
        
     IF(AND(AlienTourist.conclusion,
            Features.wears_spacesuit,
-           Features.has_robotic_speech,
-           Features.has_antennae,
-           Features.has_floating_gait),
+           Features.has_robotic_speech),
        THEN(GlieseTourist.conclusion)),
        
     IF(AND(AlienTourist.conclusion,
            Features.wears_colorful_clothes,
-           Features.has_tentacles,
            Features.walks_slowly,
            Features.interested_in_lunar_culture),
        THEN(KeplerTourist.conclusion)),
        
     IF(AND(AlienTourist.conclusion,
            Features.wears_traditional_cancri_clothes,
-           Features.has_multiple_eyes,
            Features.has_hissing_accent,
            Features.dislikes_loud_noises),
        THEN(CancriTourist.conclusion)),
