@@ -1,299 +1,415 @@
+# Import necessary modules
+import sys
+import re
 import random
 
-class Node:
-    def __init__(self, node_type, value=None, children=None):
-        self.node_type = node_type  # 'and', 'or', 'characteristic', 'tourist'
-        self.value = value  # For 'characteristic', value is (characteristic_name, expected_value)
-        self.children = children or []
 
-class Characteristic:
-    def __init__(self, name, ctype='binary', options=None):
-        self.name = name  # E.g., 'have ears', 'be telepathic', 'wear hat'
-        self.ctype = ctype  # 'binary', 'multiple_choice', 'percentage'
-        self.options = options or []
+def AIStringToRegex(s):
+    s = re.sub(r'\(\?([a-zA-Z][a-zA-Z0-9_]*)\)', r'(?P<\1>.+)', s)
+    return '^' + s + '$'
 
-# Define characteristics
-characteristics = {
-    'have ears': Characteristic('have ears', 'binary'),
-    'be telepathic': Characteristic('be telepathic', 'binary'),
-    'wear hat': Characteristic('wear hat', 'binary'),
-    'wear sneakers': Characteristic('wear sneakers', 'binary'),
-    'intellect': Characteristic('intellect', 'percentage'),
-    'origin': Characteristic('origin', 'multiple_choice', ['Solar System', 'New Horizon System']),
-    'number of eyes': Characteristic('number of eyes', 'multiple_choice', ['two', 'three', 'many']),
-    'skin color': Characteristic('skin color', 'multiple_choice', ['green', 'blue', 'red', 'pale']),
-    'body type': Characteristic('body type', 'multiple_choice', ['humanoid', 'insectoid', 'energy-based']),
-    'communication method': Characteristic('communication method', 'multiple_choice', ['verbal', 'telepathic', 'gesture']),
-    'favorite food': Characteristic('favorite food', 'multiple_choice', ['pizza', 'rocks', 'light']),
-    'is tourist': Characteristic('a tourist', 'binary'),
-}
-
-# Build the decision tree with 3-4 levels of subgoals and AND/OR logic
-tree = Node('or', children=[
-    # Tourist Branch
-    Node('and', children=[
-        Node('characteristic', ('is tourist', 'yes')),
-        Node('or', children=[
-            # Solar System Tourists
-            Node('and', children=[
-                Node('characteristic', ('origin', 'Solar System')),
-                Node('or', children=[
-                    # Earth Tourist
-                    Node('and', children=[
-                        Node('characteristic', ('intellect', '>60')),
-                        Node('characteristic', ('wear hat', 'yes')),
-                        Node('characteristic', ('have ears', 'yes')),
-                        Node('tourist', 'Earth Tourist'),
-                    ]),
-                    # Mars Tourist
-                    Node('and', children=[
-                        Node('characteristic', ('intellect', '<=60')),
-                        Node('characteristic', ('wear sneakers', 'yes')),
-                        Node('characteristic', ('have ears', 'yes')),
-                        Node('tourist', 'Mars Tourist'),
-                    ]),
-                ]),
-            ]),
-            # New Horizon System Tourists
-            Node('and', children=[
-                Node('characteristic', ('origin', 'New Horizon System')),
-                Node('or', children=[
-                    # Gliese Tourist
-                    Node('and', children=[
-                        Node('characteristic', ('be telepathic', 'yes')),
-                        Node('characteristic', ('have ears', 'no')),
-                        Node('characteristic', ('number of eyes', 'many')),
-                        Node('tourist', 'Gliese Tourist'),
-                    ]),
-                    # Kepler Tourist
-                    Node('and', children=[
-                        Node('characteristic', ('be telepathic', 'no')),
-                        Node('characteristic', ('have ears', 'no')),
-                        Node('characteristic', ('skin color', 'blue')),
-                        Node('tourist', 'Kepler Tourist'),
-                    ]),
-                    # Cancri Tourist
-                    Node('and', children=[
-                        Node('characteristic', ('be telepathic', 'yes')),
-                        Node('characteristic', ('communication method', 'gesture')),
-                        Node('characteristic', ('favorite food', 'light')),
-                        Node('tourist', 'Cancri Tourist'),
-                    ]),
-                ]),
-            ]),
-        ]),
-    ]),
-    # Loonie Branch (Not a Tourist)
-    Node('and', children=[
-        Node('characteristic', ('is tourist', 'no')),
-        Node('characteristic', ('origin', 'Solar System')),
-        Node('characteristic', ('intellect', '>60')),
-        Node('tourist', 'Loonie'),
-    ]),
-])
-
-def generate_question(char_name):
-    c = characteristics[char_name]
-    if c.ctype == 'binary':
-        question = f"Is the visitor {c.name}? (yes/no): "
-    elif c.ctype == 'multiple_choice':
-        options = ', '.join(c.options)
-        question = f"What is the visitor's {c.name}? ({options}): "
-    elif c.ctype == 'percentage':
-        question = f"What is the visitor's {c.name} level? (0-100): "
-    return question
-
-def ask_question(char_name):
-    c = characteristics[char_name]
-    while True:
-        question = generate_question(char_name)
-        answer = input(question).strip()
-        if c.ctype == 'binary':
-            if answer.lower() in ['yes', 'no']:
-                return answer.lower()
-            else:
-                print("Please answer 'yes' or 'no'.")
-        elif c.ctype == 'multiple_choice':
-            if answer in c.options:
-                return answer
-            else:
-                print(f"Please choose from: {', '.join(c.options)}.")
-        elif c.ctype == 'percentage':
-            try:
-                value = int(answer)
-                if 0 <= value <= 100:
-                    return value
-                else:
-                    print("Please enter a number between 0 and 100.")
-            except ValueError:
-                print("Please enter a valid number between 0 and 100.")
-
-def evaluate_condition(answer, expected_value, char_name):
-    c = characteristics[char_name]
-    if c.ctype == 'percentage':
-        operator = expected_value[:2] if expected_value[:2] in ['<=', '>='] else expected_value[0]
-        expected_number = int(expected_value[2:] if operator in ['<=', '>='] else expected_value[1:])
-        if operator == '<':
-            return answer < expected_number
-        elif operator == '>':
-            return answer > expected_number
-        elif operator == '<=':
-            return answer <= expected_number
-        elif operator == '>=':
-            return answer >= expected_number
-        elif operator == '=':
-            return answer == expected_number
+def match(template, string):
+    pattern = AIStringToRegex(template)
+    m = re.match(pattern, string)
+    if m:
+        return m.groupdict()
     else:
-        return answer == expected_value
+        return None
 
-def collect_all_characteristics(node, chars_set):
-    if node.node_type == 'characteristic':
-        char_name, _ = node.value
-        chars_set.add(char_name)
-    elif node.children:
-        for child in node.children:
-            collect_all_characteristics(child, chars_set)
+def populate(template, bindings):
+    s = template
+    for var, value in bindings.items():
+        s = s.replace('(?%s)' % var, value)
+    return s
 
-def possible_paths(node, known_answers):
-    if node.node_type == 'tourist':
-        return [[node]]
-    elif node.node_type == 'characteristic':
-        char_name, expected_value = node.value
-        if char_name in known_answers:
-            answer = known_answers[char_name]
-            if evaluate_condition(answer, expected_value, char_name):
-                return [[]]
-            else:
-                return []
+def variables(s):
+    return set(re.findall(r'\(\?([a-zA-Z][a-zA-Z0-9_]*)\)', s))
+
+def instantiate(template, bindings):
+    return populate(template, bindings)
+
+
+class IF(object):
+    def __init__(self, antecedent, consequent):
+        self.antecedent = antecedent
+        if isinstance(consequent, THEN):
+            self.consequent = consequent
         else:
-            return [[node]]
-    elif node.node_type == 'and':
-        paths = [[]]
-        for child in node.children:
-            child_paths = possible_paths(child, known_answers)
-            if not child_paths:
-                return []
-            new_paths = []
-            for path in paths:
-                for cpath in child_paths:
-                    new_paths.append(path + cpath)
-            paths = new_paths
-        return paths
-    elif node.node_type == 'or':
-        paths = []
-        for child in node.children:
-            child_paths = possible_paths(child, known_answers)
-            paths.extend(child_paths)
-        return paths
+            self.consequent = THEN(consequent)
+        
+    def __str__(self):
+        return "IF %s THEN %s" % (self.antecedent, self.consequent)
+        
+    def __repr__(self):
+        return str(self)
+
+class AND(list):
+    def __init__(self, *args):
+        super().__init__(args)
+        
+    def __str__(self):
+        return "AND(%s)" % ', '.join(map(str, self))
+        
+    def __repr__(self):
+        return str(self)
+
+class OR(list):
+    def __init__(self, *args):
+        super().__init__(args)
+        
+    def __str__(self):
+        return "OR(%s)" % ', '.join(map(str, self))
+        
+    def __repr__(self):
+        return str(self)
+
+class THEN(list):
+    def __init__(self, *args):
+        super().__init__(args)
+        
+    def __str__(self):
+        return "THEN(%s)" % ', '.join(map(str, self))
+        
+    def __repr__(self):
+        return str(self)
+
+
+def forward_chain(rules, data):
+    inferred = set(data)
+    added = True
+    while added:
+        added = False
+        for rule in rules:
+            bindings_list = match_antecedent(rule.antecedent, inferred)
+            for bindings in bindings_list:
+                for conclusion in rule.consequent:
+                    consequent = instantiate_consequent(conclusion, bindings)
+                    if consequent not in inferred:
+                        inferred.add(consequent)
+                        added = True
+    return inferred
+
+
+def match_antecedent(antecedent, data):
+    if isinstance(antecedent, str):
+        bindings_list = []
+        for fact in data:
+            bindings = match(antecedent, fact)
+            if bindings is not None:
+                bindings_list.append(bindings)
+        return bindings_list
+    elif isinstance(antecedent, AND):
+        bindings_list = [{}]
+        for condition in antecedent:
+            new_bindings_list = []
+            for bindings in bindings_list:
+                condition_inst = instantiate(condition, bindings)
+                matches = match_antecedent(condition_inst, data)
+                for match_bindings in matches:
+                    merged_bindings = bindings.copy()
+                    merged_bindings.update(match_bindings)
+                    new_bindings_list.append(merged_bindings)
+            bindings_list = new_bindings_list
+        return bindings_list
+    elif isinstance(antecedent, OR):
+        bindings_list = []
+        for condition in antecedent:
+            matches = match_antecedent(condition, data)
+            bindings_list.extend(matches)
+        return bindings_list
     else:
         return []
 
-def select_next_question(possible_paths, asked_questions):
-    char_counts = {}
-    for path in possible_paths:
-        for node in path:
-            if node.node_type == 'characteristic':
-                char_name, _ = node.value
-                if char_name not in asked_questions:
-                    char_counts[char_name] = char_counts.get(char_name, 0) + 1
-    if not char_counts:
-        return None
-    # Randomly select from the characteristics with the highest count
-    max_count = max(char_counts.values())
-    candidates = [char for char, count in char_counts.items() if count == max_count]
-    return random.choice(candidates)
+def instantiate_consequent(consequent, bindings):
+    return populate(consequent, bindings)
 
-def forward_chaining_random(node):
-    known_answers = {}
-    asked_questions = set()
-    # Collect all characteristics from the tree
-    all_chars = set()
-    collect_all_characteristics(node, all_chars)
-    all_chars = list(all_chars)
-    # Randomly select the first question from all characteristics
-    if all_chars:
-        first_question = random.choice(all_chars)
-        answer = ask_question(first_question)
-        known_answers[first_question] = answer
-        asked_questions.add(first_question)
-    while True:
-        paths = possible_paths(node, known_answers)
-        if not paths:
-            print("\nThe visitor type is unknown based on the provided information.")
-            return
-        # Check if we have reached a conclusion
-        for path in paths:
-            if all(node.node_type != 'characteristic' for node in path) and path[-1].node_type == 'tourist':
-                print(f"\nThe visitor is classified as: {path[-1].value}")
-                return
-        # Select next question
-        next_char = select_next_question(paths, asked_questions)
-        if not next_char:
-            print("\nThe visitor type is unknown based on the provided information.")
-            return
-        answer = ask_question(next_char)
-        known_answers[next_char] = answer
-        asked_questions.add(next_char)
 
-def backward_chaining(node, goal, path):
-    if node.node_type == 'tourist' and node.value == goal:
-        path.append(node)
-        return True
-    elif node.node_type == 'and':
-        path.append(node)
-        for child in node.children:
-            if not backward_chaining(child, goal, path):
-                while path and path[-1] != node:
-                    path.pop()
-                return False
-        return True
-    elif node.node_type == 'or':
-        path.append(node)
-        for child in node.children:
-            if backward_chaining(child, goal, path):
-                return True
-        while path and path[-1] != node:
-            path.pop()
-        path.pop()
-        return False
-    elif node.node_type == 'characteristic':
-        path.append(node)
-        return True
-    return False
+def backward_chain(rules, hypothesis, inferred=None):
+    if inferred is None:
+        inferred = set()
+    if hypothesis in inferred:
+        return []
+    goal_tree = []
+    for rule in rules:
+        for conclusion in rule.consequent:
+            bindings = match(conclusion, hypothesis)
+            if bindings is not None:
+                antecedent = rule.antecedent
+                sub_goals = backward_chain_antecedent(rules, antecedent, bindings, inferred)
+                goal_tree.append((rule, sub_goals))
+    if not goal_tree:
+        inferred.add(hypothesis)
+        goal_tree.append((hypothesis, []))
+    return goal_tree
 
-def print_backward_chaining_result(goal, path):
-    print(f"\nTo identify a {goal}, the following characteristics and expected answers are considered:")
-    subgoal_conditions = []
-    for node in path:
-        if node.node_type == 'characteristic':
-            char_name, expected_value = node.value
-            c = characteristics[char_name]
-            subgoal_conditions.append(f"{char_name} = {expected_value}")
-            question = generate_question(char_name).split("?")[0]
-            print(f"- {question}? Expected answer: {expected_value}")
-        elif node.node_type == 'tourist':
-            print(f"- Identified visitor type: {node.value}")
-    if subgoal_conditions:
-        subgoal_description = " and ".join(subgoal_conditions)
-        print(f"- Subgoal: Visitor {subgoal_description}")
-
-def main():
-    print("Welcome to the Luna-City Tourist Expert System!")
-    mode = input("Choose mode (1 for Forward Chaining, 2 for Backward Chaining): ").strip()
-
-    if mode == "1":
-        print("\nStarting Forward Chaining...")
-        forward_chaining_random(tree)
-    elif mode == "2":
-        goal = input("Enter the visitor type you want to check: ").strip()
-        print(f"\nBackward Chaining to determine if the visitor is a {goal}...")
-        path = []
-        if backward_chaining(tree, goal, path):
-            print_backward_chaining_result(goal, path)
-        else:
-            print(f"\nCould not find a path to confirm that the visitor is a {goal}.")
+def backward_chain_antecedent(rules, antecedent, bindings, inferred):
+    if isinstance(antecedent, str):
+        instantiated = populate(antecedent, bindings)
+        inferred.add(instantiated)
+        sub_goals = backward_chain(rules, instantiated, inferred)
+        return [(instantiated, sub_goals)]
+    elif isinstance(antecedent, AND):
+        sub_goals = []
+        for condition in antecedent:
+            instantiated = populate(condition, bindings)
+            sub_sub_goals = backward_chain(rules, instantiated, inferred)
+            sub_goals.append((instantiated, sub_sub_goals))
+        return sub_goals
+    elif isinstance(antecedent, OR):
+        sub_goals = []
+        for condition in antecedent:
+            instantiated = populate(condition, bindings)
+            sub_sub_goals = backward_chain(rules, instantiated, inferred)
+            sub_goals.append((instantiated, sub_sub_goals))
+        return sub_goals
     else:
-        print("Invalid mode selected.")
+        return []
 
-if __name__ == "__main__":
-    main()
+
+class Features:
+    wears_traditional_earth_clothes = '(?x) wears traditional Earth clothes'
+    wears_modern_fashion = '(?x) wears modern fashion'
+    wears_spacesuit = '(?x) wears spacesuit'
+    wears_colorful_clothes = '(?x) wears colorful clothes'
+    wears_traditional_cancri_clothes = '(?x) wears traditional Cancri clothes'
+    wears_lunar_clothes = '(?x) wears lunar clothes'
+    
+    has_earth_accent = '(?x) has Earth accent'
+    has_mars_accent = '(?x) has Mars accent'
+    has_robotic_speech = '(?x) has robotic speech'
+    has_hissing_accent = '(?x) has hissing accent'
+    has_lunar_accent = '(?x) has lunar accent'
+    
+    takes_pictures_frequently = '(?x) takes pictures frequently'
+    supports_earth_moon_unification = '(?x) supports Earth-Moon unification'
+    supports_mars_independence = '(?x) supports Mars independence'
+    dislikes_loud_noises = '(?x) dislikes loud noises'
+    interested_in_lunar_culture = '(?x) is interested in lunar culture'
+    
+    walks_fast = '(?x) walks fast'
+    walks_slowly = '(?x) walks slowly'
+    has_floating_gait = '(?x) has floating gait'
+    
+    has_antennae = '(?x) has antennae'
+    has_tentacles = '(?x) has tentacles'
+    has_multiple_eyes = '(?x) has multiple eyes'
+
+class EarthOriginTourist:
+    conclusion = '(?x) is an Earth-origin tourist'
+    
+class MarsOriginTourist:
+    conclusion = '(?x) is a Mars-origin tourist'
+    
+class AlienTourist:
+    conclusion = '(?x) is an alien tourist'
+    
+class EarthTourist:
+    conclusion = '(?x) is an Earth Tourist'
+    
+class MarsTourist:
+    conclusion = '(?x) is a Mars Tourist'
+    
+class GlieseTourist:
+    conclusion = '(?x) is a Gliese Tourist'
+    
+class KeplerTourist:
+    conclusion = '(?x) is a Kepler Tourist'
+    
+class CancriTourist:
+    conclusion = '(?x) is a Cancri Tourist'
+    
+class Loonie:
+    conclusion = '(?x) is a Loonie'
+
+
+TOURIST_RULES = [
+    IF(AND(Features.wears_traditional_earth_clothes,
+           Features.has_earth_accent),
+       THEN(EarthOriginTourist.conclusion)),
+       
+    IF(AND(Features.wears_modern_fashion,
+           Features.has_mars_accent),
+       THEN(MarsOriginTourist.conclusion)),
+       
+    IF(Features.has_antennae,
+       THEN(AlienTourist.conclusion)),
+       
+    IF(Features.has_tentacles,
+       THEN(AlienTourist.conclusion)),
+       
+    IF(Features.has_multiple_eyes,
+       THEN(AlienTourist.conclusion)),
+       
+    IF(AND(Features.wears_lunar_clothes,
+           Features.has_lunar_accent),
+       THEN(Loonie.conclusion)),
+       
+    IF(AND(EarthOriginTourist.conclusion,
+           Features.takes_pictures_frequently,
+           Features.supports_earth_moon_unification),
+       THEN(EarthTourist.conclusion)),
+       
+    IF(AND(MarsOriginTourist.conclusion,
+           Features.walks_fast,
+           Features.supports_mars_independence),
+       THEN(MarsTourist.conclusion)),
+       
+    IF(AND(AlienTourist.conclusion,
+           Features.wears_spacesuit,
+           Features.has_robotic_speech,
+           Features.has_antennae,
+           Features.has_floating_gait),
+       THEN(GlieseTourist.conclusion)),
+       
+    IF(AND(AlienTourist.conclusion,
+           Features.wears_colorful_clothes,
+           Features.has_tentacles,
+           Features.walks_slowly,
+           Features.interested_in_lunar_culture),
+       THEN(KeplerTourist.conclusion)),
+       
+    IF(AND(AlienTourist.conclusion,
+           Features.wears_traditional_cancri_clothes,
+           Features.has_multiple_eyes,
+           Features.has_hissing_accent,
+           Features.dislikes_loud_noises),
+       THEN(CancriTourist.conclusion)),
+]
+
+
+def get_class_field_values(cls):
+    values = [value for key, value in cls.__dict__.items() if not key.startswith('__') and not callable(getattr(cls, key))]
+    return values
+
+
+class Choices:
+    def __init__(self):
+        self.features = get_class_field_values(Features)
+        self.features = list(set(self.features))
+        self.statements = [feature.replace('(?x) ', '') for feature in self.features]
+        self.questions = [self.statement_to_question(statement) for statement in self.statements]
+        
+        self.conclusions = [
+            EarthTourist.conclusion,
+            MarsTourist.conclusion,
+            GlieseTourist.conclusion,
+            KeplerTourist.conclusion,
+            CancriTourist.conclusion,
+            Loonie.conclusion
+        ]
+        
+    def statement_to_question(self, statement):
+        if statement.startswith('wears'):
+            return f'Do you {statement}?'
+        elif statement.startswith('has'):
+            return f'Do you have {statement[4:]}?'
+        elif statement.startswith('takes'):
+            return f'Do you {statement}?'
+        elif statement.startswith('supports'):
+            return f'Do you {statement}?'
+        elif statement.startswith('dislikes'):
+            return f'Do you {statement}?'
+        elif statement.startswith('is interested in'):
+            return f'Are you interested in {statement[16:]}?'
+        elif statement.startswith('walks'):
+            return f'Do you {statement}?'
+        elif statement.startswith('is'):
+            return f'Are you{statement[2:]}?'
+        else:
+            return f'Do you {statement}?'
+    
+    def forward(self, name):
+        print("Please answer the following questions:")
+        facts = []
+        indices = list(range(len(self.questions)))
+        random.shuffle(indices)
+        for index in indices:
+            question = self.questions[index]
+            answer = input(f"{question} (yes/no)\n")
+            if answer.lower() == 'yes':
+                fact = self.features[index].replace('(?x)', name)
+                facts.append(fact)
+            elif answer.lower() == 'no':
+                continue
+            else:
+                print("Invalid answer, please answer 'yes' or 'no'.")
+                continue
+        inferred_facts = forward_chain(TOURIST_RULES, facts)
+        tourist_types = []
+        for conclusion in self.conclusions:
+            populated_conclusion = conclusion.replace('(?x)', name)
+            if populated_conclusion in inferred_facts:
+                tourist_types.append(populated_conclusion)
+        if tourist_types:
+            print("Based on your answers, you are:")
+            for tourist_type in tourist_types:
+                print(tourist_type)
+        else:
+            print("Based on your answers, we could not identify your tourist type.")
+    
+    def backward(self, name):
+        print("Please choose the tourist type to check:")
+        for index, conclusion in enumerate(self.conclusions):
+            print(f"{index + 1}. {conclusion.replace('(?x)', name)}")
+        selected = input("Enter the number corresponding to your choice:\n")
+        try:
+            selected_index = int(selected) - 1
+            if 0 <= selected_index < len(self.conclusions):
+                goal = self.conclusions[selected_index].replace('(?x)', name)
+                goal_tree = backward_chain(TOURIST_RULES, goal)
+                if goal_tree:
+                    print(f"To be identified as {goal}, you need to satisfy the following conditions:")
+                    self.print_goal_tree(goal_tree)
+                else:
+                    print(f"No rules found to support that {goal}.")
+            else:
+                print("Invalid choice.")
+        except ValueError:
+            print("Invalid input.")
+    
+    def print_goal_tree(self, goal_tree, indent=0):
+        for (rule, sub_goals) in goal_tree:
+            indent_str = ' ' * indent
+            if isinstance(rule, IF):
+                antecedent = rule.antecedent
+                if isinstance(antecedent, str):
+                    question = self.statement_to_question(antecedent.replace('(?x) ', ''))
+                    print(f"{indent_str}- {question}")
+                elif isinstance(antecedent, AND):
+                    for condition in antecedent:
+                        question = self.statement_to_question(condition.replace('(?x) ', ''))
+                        print(f"{indent_str}- {question}")
+                elif isinstance(antecedent, OR):
+                    for condition in antecedent:
+                        question = self.statement_to_question(condition.replace('(?x) ', ''))
+                        print(f"{indent_str}- {question}")
+                else:
+                    pass
+            elif isinstance(rule, str):
+                question = self.statement_to_question(rule.replace('(?x) ', ''))
+                print(f"{indent_str}- {question}")
+            else:
+                pass
+            if sub_goals:
+                self.print_goal_tree(sub_goals, indent + 2)
+
+
+if __name__ == '__main__':
+    print("Welcome to the Luna-City Tourist Expert System!")
+    print("-----------------------------------------------")
+    name = input("Please enter your name:\n")
+    print(f"Hello, {name}!")
+    choices = Choices()
+    while True:
+        print("Choose the algorithm you want to use:")
+        algorithm = input("Enter 1 for Forward Chaining, 2 for Backward Chaining:\n")
+        if algorithm == '1':
+            choices.forward(name)
+        elif algorithm == '2':
+            choices.backward(name)
+        else:
+            print("Invalid choice.")
+        continue_choice = input("Do you want to continue? (yes/no)\n")
+        if continue_choice.lower() != 'yes':
+            print("Goodbye!")
+            break
