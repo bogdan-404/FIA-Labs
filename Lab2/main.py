@@ -8,11 +8,11 @@ import random
 pygame.init()
 
 # Set up display
-WIDTH, HEIGHT = 1000, 1000  # Large map size
-ROWS, COLS = 50, 50  # Large grid size
+WIDTH, HEIGHT = 800, 800  
+ROWS, COLS = 30, 30  
 CELL_SIZE = WIDTH // COLS
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Ghost Avoidance Game")
+pygame.display.set_caption("Ghost Game")
 
 # Colors
 WHITE = (255, 255, 255)
@@ -52,7 +52,7 @@ class GameMap:
             self.walls.add((0, y))
             self.walls.add((COLS - 1, y))
 
-        # Generate walls in a less complex manner
+        # Generate walls
         for x in range(2, COLS - 2, 4):
             for y in range(2, ROWS - 2, 4):
                 # Create horizontal walls
