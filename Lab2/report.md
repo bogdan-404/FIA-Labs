@@ -1,4 +1,4 @@
-# Lab 1: Searching Algorithms
+# Lab 2: Searching Algorithms
 
 ## Performed by: Zlatovcen Bogdan, group FAF-212
 
