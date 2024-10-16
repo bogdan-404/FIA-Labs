@@ -77,7 +77,7 @@ def minimax(game_state, depth, alpha, beta, maximizingPlayer, game_map):
 
 A penalty is added if the agent revisits recent positions to discourage looping.
 
-The agent's previous positions are tracked to apply the loop penalty.
+The agent's 4 previous positions are tracked to apply the loop penalty.
 
 ```python
 class Agent:
