@@ -5,25 +5,9 @@ from collections import deque
 import random
 
 def read_grid():
-    """
-    Reads a Sudoku grid from user input.
-    The user can input the entire grid at once, separated by newlines.
-    Each line should have exactly 9 characters (digits 1-9 or '*').
-    Returns the grid as a 2D list.
-    """
     grid = []
     print("Enter the entire Sudoku grid. You can paste all 9 lines at once or enter them one by one.")
     print("Use digits 1-9 for filled cells and '*' for empty cells.")
-    print("Example input (each row on a new line):")
-    print("53**7****")
-    print("6**195***")
-    print("*98****6*")
-    print("8***6***3")
-    print("4**8*3**1")
-    print("7***2***6")
-    print("*6****28*")
-    print("***419**5")
-    print("****8**79")
     print("\nPlease enter the Sudoku grid:")
     
     while len(grid) < 9:
@@ -48,10 +32,6 @@ def read_grid():
     return grid
 
 def print_grid(grid):
-    """
-    Prints the Sudoku grid in a readable format.
-    Empty cells are represented by '.' for clarity.
-    """
     for i, row in enumerate(grid):
         row_str = ''
         for j, num in enumerate(row):
@@ -65,10 +45,6 @@ def print_grid(grid):
             print("- " * 11)
 
 def generate_full_grid():
-    """
-    Generates a complete Sudoku grid using backtracking.
-    Returns the completed grid as a 2D list.
-    """
     grid = [['*' for _ in range(9)] for _ in range(9)]
     if fill_grid(grid):
         return grid
@@ -77,9 +53,6 @@ def generate_full_grid():
         return None
 
 def fill_grid(grid):
-    """
-    Helper function to fill the grid recursively.
-    """
     empty = find_empty(grid)
     if not empty:
         return True  # Grid is complete
@@ -95,11 +68,6 @@ def fill_grid(grid):
     return False
 
 def remove_cells(grid, attempts=40):
-    """
-    Removes a number of cells from the grid to create a puzzle.
-    The number of attempts determines how many cells to remove.
-    Ensures that the puzzle has a unique solution.
-    """
     grid_copy = copy.deepcopy(grid)
     cells = [(i, j) for i in range(9) for j in range(9)]
     random.shuffle(cells)
@@ -121,10 +89,6 @@ def remove_cells(grid, attempts=40):
     return grid_copy
 
 def count_solutions(grid, solutions, limit):
-    """
-    Counts the number of solutions for a given Sudoku grid.
-    Stops counting after reaching the limit.
-    """
     if len(solutions) >= limit:
         return
     empty = find_empty(grid)
@@ -139,10 +103,6 @@ def count_solutions(grid, solutions, limit):
             grid[row][col] = '*'
 
 def generate_sudoku():
-    """
-    Generates a Sudoku puzzle by creating a full grid and then removing cells.
-    Returns the puzzle grid as a 2D list.
-    """
     full_grid = generate_full_grid()
     if not full_grid:
         return None
@@ -150,10 +110,6 @@ def generate_sudoku():
     return puzzle
 
 def find_empty(grid):
-    """
-    Finds an empty cell in the grid.
-    Returns a tuple (row, col) or None if the grid is full.
-    """
     for i in range(9):
         for j in range(9):
             if grid[i][j] == '*':
@@ -161,10 +117,6 @@ def find_empty(grid):
     return None
 
 def is_valid(grid, num, pos):
-    """
-    Checks whether it's valid to place num at position pos in the grid.
-    pos is a tuple (row, col).
-    """
     row, col = pos
     # Check row
     for j in range(9):
@@ -184,9 +136,6 @@ def is_valid(grid, num, pos):
     return True
 
 def task1_backtracking_solver(grid):
-    """
-    Task 1: Solves the Sudoku using backtracking.
-    """
     grid_copy = copy.deepcopy(grid)
     if solve_backtracking(grid_copy):
         print("Solved Sudoku:")
@@ -195,10 +144,6 @@ def task1_backtracking_solver(grid):
         print("No solution exists for the provided Sudoku.")
 
 def solve_backtracking(grid):
-    """
-    Solves the Sudoku puzzle using backtracking.
-    Returns True if a solution is found, False otherwise.
-    """
     empty = find_empty(grid)
     if not empty:
         return True  # Solved
@@ -212,10 +157,6 @@ def solve_backtracking(grid):
     return False
 
 def get_domains(grid):
-    """
-    For each cell, defines its domain (possible values).
-    Returns a dictionary with keys as (row, col) and values as sets of possible numbers.
-    """
     domains = {}
     for i in range(9):
         for j in range(9):
@@ -246,10 +187,6 @@ def task2_constraint_propagation(grid):
         print(f"Cell {key}: {sorted(domains[key])}")
 
 def forward_checking(grid, domains, var, value):
-    """
-    Implements forward checking by updating the domains after assigning value to var.
-    Returns False if a domain is emptied, True otherwise along with the updated domains.
-    """
     row, col = var
     # Create a copy of domains to modify
     local_domains = copy.deepcopy(domains)
@@ -265,9 +202,6 @@ def forward_checking(grid, domains, var, value):
     return True, local_domains
 
 def get_peers(row, col):
-    """
-    Returns a set of peer coordinates for a given cell.
-    """
     peers = set()
     for j in range(9):
         if j != col:
@@ -284,9 +218,6 @@ def get_peers(row, col):
     return peers
 
 def task3_backtracking_with_forward_checking(grid):
-    """
-    Task 3: Combines Backtracking with Constraint Propagation and implements Forward Checking.
-    """
     grid_copy = copy.deepcopy(grid)
     domains = get_domains(grid_copy)
     if solve_backtracking_forward(grid_copy, domains):
@@ -296,9 +227,6 @@ def task3_backtracking_with_forward_checking(grid):
         print("No solution exists for the provided Sudoku.")
 
 def solve_backtracking_forward(grid, domains):
-    """
-    Solves the Sudoku using backtracking with forward checking.
-    """
     if not domains:
         return True  # Solved
     # Select the variable with the smallest domain (MRV heuristic)
@@ -316,9 +244,6 @@ def solve_backtracking_forward(grid, domains):
     return False
 
 def task4_heuristic_solver(grid):
-    """
-    Task 4: Implements a heuristic algorithm (MRV) combined with Constraint Propagation.
-    """
     grid_copy = copy.deepcopy(grid)
     domains = get_domains(grid_copy)
     if solve_heuristic(grid_copy, domains):
@@ -328,9 +253,6 @@ def task4_heuristic_solver(grid):
         print("No solution exists for the provided Sudoku.")
 
 def solve_heuristic(grid, domains):
-    """
-    Solves the Sudoku using MRV heuristic and Constraint Propagation.
-    """
     if not domains:
         return True  # Solved
     # MRV heuristic: choose the variable with the fewest possible values
@@ -358,10 +280,6 @@ def solve_heuristic(grid, domains):
     return False
 
 def ac3(domains):
-    """
-    Implements the AC-3 algorithm for Constraint Propagation.
-    Returns False if inconsistency is found, True otherwise.
-    """
     queue = deque([(xi, xj) for xi in domains for xj in get_peers(xi[0], xi[1]) if xj in domains])
     while queue:
         xi, xj = queue.popleft()
@@ -389,9 +307,6 @@ def revise(domains, xi, xj):
     return revised
 
 def task7_constraint_propagation_ac3(grid):
-    """
-    Task 7: Implements the AC-3 Constraint Propagation algorithm to improve the solution.
-    """
     grid_copy = copy.deepcopy(grid)
     domains = get_domains(grid_copy)
     if not ac3(domains):
@@ -404,9 +319,6 @@ def task7_constraint_propagation_ac3(grid):
         print("No solution exists for the provided Sudoku after applying AC-3.")
 
 def solve_with_ac3(grid, domains):
-    """
-    Solves the Sudoku using backtracking enhanced with AC-3 Constraint Propagation.
-    """
     if not domains:
         return True  # Solved
     # MRV heuristic
@@ -432,9 +344,6 @@ def solve_with_ac3(grid, domains):
     return False
 
 def task5_generate_sudoku():
-    """
-    Task 5: Generates a valid Sudoku grid that the algorithm can solve.
-    """
     puzzle = generate_sudoku()
     if puzzle:
         print("Generated Sudoku Puzzle:")
@@ -443,9 +352,6 @@ def task5_generate_sudoku():
         print("Failed to generate Sudoku puzzle.")
 
 def task6_handle_invalid_sudoku(grid):
-    """
-    Task 6: Handles invalid Sudoku puzzles by determining whether the provided grid is solvable.
-    """
     grid_copy = copy.deepcopy(grid)
     solutions = []
     count_solutions(grid_copy, solutions, 2)
@@ -491,9 +397,6 @@ def task_menu(grid):
             print("Invalid choice. Please select a valid option.")
 
 def main_menu():
-    """
-    Displays the main menu and handles user selection between generating or inputting a Sudoku puzzle.
-    """
     while True:
         print("\nSudoku Solver Laboratory Work")
         print("1. Generate a Sudoku Puzzle")
